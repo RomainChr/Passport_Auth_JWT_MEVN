@@ -13,7 +13,7 @@ router.get('/', passport.authenticate('jwt', { session: false}), function(req, r
   }
 });
 
-let getToken = function (headers) {
+getToken = function (headers) {
   if (headers && headers.authorization) {
     var parted = headers.authorization.split(' ');
     if (parted.length === 2) {

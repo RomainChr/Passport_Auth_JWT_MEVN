@@ -4,12 +4,13 @@
       <h2 v-if="user">
         Welcome Home {{ user.username }}
         <b-link @click="logout()">(Logout)</b-link>
+        <router-link :to="'/profile/'+ user.userId" tag="button" class="btn btn-outline-success">Profile</router-link>
       </h2>
-      <ul v-if="errors && errors.length">
+      <!--<ul v-if="errors && errors.length">
         <li v-for="error of errors">
           {{error.message}}
         </li>
-      </ul>
+      </ul>-->
     </b-col>
   </b-row>
 </template>
@@ -28,10 +29,9 @@
     },
     created () {
       axios.defaults.headers.common['Authorization'] = localStorage.getItem('jwtToken')
-      axios.get(`http://localhost:3000/api/home`)
+      axios.get('http://localhost:3000/api/home')
         .then(response => {
           this.user = response.data.user
-          console.log(this.user)
         })
         .catch(e => {
           this.errors.push(e)
