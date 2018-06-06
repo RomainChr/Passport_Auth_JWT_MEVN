@@ -7,10 +7,10 @@
           <b-alert show>{{error.message}}</b-alert>
         </div>
       </div>-->
-      <div class="alert alert-danger" role="alert" v-if="visibilityAlert">
+      <div class="alert alert-danger" role="alert" v-if="msgAlert">
         {{ msgAlert }}
       </div>
-      <b-form v-on:submit.prevent="onSubmit">
+      <b-form v-on:submit.prevent="registerUser">
         <b-form-group id="fieldsetHorizontal"
                       horizontal
                       :label-cols="4"
@@ -64,45 +64,55 @@
       return {
         register: {},
         errors: [],
-        visibilityAlert: false,
         msgAlert: null
       }
     },
+    watch: {
+      // hide alert if field modified
+      register: {
+        handler () {
+          this.msgAlert = null
+        },
+        deep: true
+      }
+    },
     methods: {
-      checkForm () {
-        if (this.register.email && this.register.username && this.register.password && this.register.firstname && this.register.surname) {
-          return true
-        } else {
-          return false
-        }
+      checkEmail () {
+        let regex = /\S+@\S+\.\S+/
+        console.log('checkEmail ' + regex.test(this.register.email))
+        return regex.test(this.register.email)
       },
-      onSubmit (evt) {
-        if (this.checkForm()) {
-          evt.preventDefault()
-          axios.post(`http://localhost:3000/api/auth/register/`, this.register)
-            .then(response => {
-              if (response.data.msg === 'email already exists') {
-                this.visibilityAlert = true
-                this.msgAlert = "Email used already exist. Try to login."
-              } else if (response.data.msg === 'username already exists') {
-                this.visibilityAlert = true
-                this.msgAlert = "Usernamed used already exist. Please use something else."
-              } else {
-                this.$router.push({
-                  name: 'Login'
-                })
-              }
-            })
-            .catch(e => {
-              this.errors.push(e)
-              this.$router.push({
-                name: 'Register'
-              })
-            })
-        } else {
-          this.visibilityAlert = true
-          this.msgAlert = "Please fill in all informations."
+      registerUser (evt) {
+        evt.preventDefault()
+
+        if( !this.checkEmail() ){
+          this.msgAlert = "Email not valid"
+          return
         }
+
+        if ( !this.register.email || !this.register.username || !this.register.password || !this.register.firstname || !this.register.surname ) {
+          this.msgAlert = "Please fill in all informations."
+          return
+        }
+
+        axios.post(`http://localhost:3000/api/auth/register/`, this.register)
+          .then(response => {
+            if (response.data.msg === 'email already exists') {
+              this.msgAlert = "Email used already exist. Try to login."
+              return
+            }
+
+            if (response.data.msg === 'username already exists') {
+              this.msgAlert = "Usernamed used already exist. Please use something else."
+              return
+            }
+
+            this.$router.push({ name: 'Login' })
+          })
+          .catch(e => {
+            this.errors.push(e)
+            this.$router.push({ name: 'Register' })
+          })
       }
     }
   }

@@ -7,10 +7,10 @@
           <b-alert show>{{error.message}}</b-alert>
         </div>
       </div>-->
-      <div class="alert alert-danger" role="alert" v-if="visibilityAlert">
+      <div class="alert alert-danger" role="alert" v-if="msgAlert">
         {{ msgAlert }}
       </div>
-      <b-form v-on:submit.prevent="onSubmit">
+      <b-form v-on:submit.prevent="submitLogin">
         <b-form-group id="fieldsetHorizontal"
                       horizontal
                       :label-cols="4"
@@ -42,59 +42,50 @@
       return {
         login: {},
         errors: [],
-        visibilityAlert: false,
         msgAlert: null
       }
     },
     watch: {
+      // hide alert if login modified
       login: {
         handler () {
-          this.visibilityAlert = false
+          this.msgAlert = null
         },
         deep: true
       }
     },
     methods: {
-      checkForm () {
-        if (this.login.username && this.login.password) {
-          return true
-        } else {
-          return false
-        }
-      },
-      onSubmit (evt) {
-        if (this.checkForm()) {
-          evt.preventDefault()
-          axios.post(`http://localhost:3000/api/auth/login/`, this.login)
-            .then(response => {
-              if (response.data.msg === 'email or username not found') {
-                this.visibilityAlert = true
-                this.msgAlert = "Incorrect username or email address."
-              } else if (response.data.msg === 'wrong password') {
-                this.visibilityAlert = true
-                this.msgAlert = "Incorrect password."
-              } else {
-                localStorage.setItem('jwtToken', response.data.token)
-                this.$router.push({
-                  name: 'Home'
-                })
-              }
-            })
-            .catch(e => {
-              this.errors.push(e)
-              this.$router.push({
-                name: 'Login'
-              })
-            })
-        } else {
-          this.visibilityAlert = true
+      submitLogin (evt) {
+        if ( !this.login.username || !this.login.password) {
           this.msgAlert = "Please fill in all informations."
+          return
         }
+
+        evt.preventDefault()
+
+        axios.post(`http://localhost:3000/api/auth/login/`, this.login)
+          .then(response => {
+            if (response.data.msg === 'email or username not found') {
+              this.msgAlert = "Incorrect username or email address."
+              return
+            }
+
+            if (response.data.msg === 'wrong password') {
+              this.msgAlert = "Incorrect password."
+              return
+            }
+
+            localStorage.setItem('jwtToken', response.data.token)
+            this.$router.push({ name: 'Home' })
+
+          })
+          .catch(e => {
+            this.errors.push(e)
+            this.$router.push({ name: 'Login' })
+          })
       },
       register () {
-        this.$router.push({
-          name: 'Register'
-        })
+        this.$router.push({ name: 'Register' })
       }
     }
   }

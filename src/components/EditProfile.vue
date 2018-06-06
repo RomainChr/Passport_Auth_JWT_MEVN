@@ -7,12 +7,12 @@
           <b-alert show>{{error.message}}</b-alert>
         </div>
       </div>-->
-      <div class="alert alert-danger" role="alert" v-if="visibilityAlert">
+      <div class="alert alert-danger" role="alert" v-if="msgAlert">
         {{ msgAlert }}
       </div>
 
 
-      <b-form v-on:submit.prevent="onSubmit" v-if="updateUser">
+      <b-form v-on:submit.prevent="updateProfile" v-if="updateUser">
         <b-form-group id="fieldsetHorizontal"
                       horizontal
                       :label-cols="4"
@@ -59,11 +59,20 @@ export default {
       user: null,
       updateUser: null,
       errors: [],
-      visibilityAlert: false,
       msgAlert: null
     }
   },
+  watch: {
+    // hide alert if field modified
+    updateUser: {
+      handler () {
+        this.msgAlert = null
+      },
+      deep: true
+    }
+  },
   created () {
+    // GET user datas
     axios.defaults.headers.common['Authorization'] = localStorage.getItem('jwtToken')
     axios.get(`http://localhost:3000/api/auth/profile/` + this.$route.params.id)
       .then(response => {
@@ -80,55 +89,51 @@ export default {
       })
   },
   methods: {
-    checkForm () {
-      if (this.updateUser.email && this.updateUser.username && this.updateUser.firstname && this.updateUser.surname) {
-        return true
-      } else {
-        return false
-      }
+    checkEmail () {
+      let regex = /\S+@\S+\.\S+/
+      return regex.test(this.updateUser.email)
     },
-    checkModified () {
-      if (this.updateUser.email !== this.user.email || this.updateUser.username !== this.user.username || this.updateUser.firstname !== this.user.firstname || this.updateUser.surname !== this.user.surname) {
-        return true
-      } else {
-        return false
-      }
-    },
-    onSubmit (evt) {
+    updateProfile (evt) {
       evt.preventDefault()
-      if (this.checkForm()) {
-        if (this.checkModified()) {
-          axios.put('http://localhost:3000/api/auth/profile/' + this.$route.params.id + '/edit', this.updateUser)
-            .then(response => {
-              if (response.data.msg === 'email already exists') {
-                this.visibilityAlert = true
-                this.msgAlert = "Email used already exist. Try to login."
-              } else if (response.data.msg === 'username already exists') {
-                this.visibilityAlert = true
-                this.msgAlert = "Usernamed used already exist. Please use something else."
-              } else {
-                this.$router.push({
-                  name: 'Profile'
-                })
-              }
-            })
-            .catch(e => {
-              this.errors.push(e)
-              if (e.response.status === 401) {
-                this.$router.push({
-                  name: 'Login'
-                })
-              }
-            })
-        } else {
-          this.$router.push({
-            name: 'Profile'
-          })
-        }
-      } else {
-        this.visibilityAlert = true
-        this.msgAlert = "Please fill in all informations."
+
+      if( !this.checkEmail() ){
+        this.msgAlert = "Email not valid"
+        return
       }
+
+      if ( !this.updateUser.email || !this.updateUser.username || !this.updateUser.firstname || !this.updateUser.surname ) {
+        this.msgAlert = "Please fill in all informations."
+        return
+      }
+
+      if (this.updateUser.email === this.user.email && this.updateUser.username === this.user.username && this.updateUser.firstname === this.user.firstname && this.updateUser.surname === this.user.surname) {
+        this.$router.push({ name: 'Profile' })
+        return
+      }
+
+      axios.put('http://localhost:3000/api/auth/profile/' + this.$route.params.id + '/edit', this.updateUser)
+        .then(response => {
+          if (response.data.msg === 'email already exists') {
+            this.msgAlert = "Email used already exist. Try to login."
+            return
+          }
+
+          if (response.data.msg === 'username already exists') {
+            this.msgAlert = "Usernamed used already exist. Please use something else."
+            return
+          }
+
+           this.$router.push({ name: 'Profile' })
+
+        })
+        .catch(e => {
+          this.errors.push(e)
+          if (e.response.status === 401) {
+            this.$router.push({
+              name: 'Login'
+            })
+          }
+        })
     }
   }
 }

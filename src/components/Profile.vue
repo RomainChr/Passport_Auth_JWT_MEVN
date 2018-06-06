@@ -11,7 +11,7 @@
         <b-form v-on:submit.prevent="" v-if="user">
           <p id="email">Email : {{ user.email }}</p>
           <p id="username">Username : {{ user.username }}</p>
-          <p id="password">Password : <b-btn @click="modalShow = !modalShow" @click="cleanInput" variant="primary">Change my password</b-btn></p>
+          <p id="password">Password : <b-btn @click="modalShow = !modalShow" @click="cleanInputField" variant="primary">Change my password</b-btn></p>
           <p id="firstname">Firstname : {{ user.firstname }}</p>
           <p id="surname">Surname : {{ user.surname }}</p>
           <b-button type="submit" variant="primary" @click="$router.push({name: 'EditProfile'})">Edit profile</b-button>
@@ -24,21 +24,21 @@
 
     <!-- Modal Component -->
     <b-modal id="modalShow" v-model="modalShow" title="Change password" hide-footer @ok="onSubmit" ok-title="Save new password" cancel-title="Cancel" no-close-on-backdrop="false">
-      <b-form v-on:submit.prevent="onSubmit">
-        <div class="alert alert-danger" role="alert" v-if="visibilityAlert2">
+      <b-form v-on:submit.prevent="updatePassword">
+        <div class="alert alert-danger" role="alert" v-if="msgAlert2">
           {{ msgAlert2 }}
         </div>
-        <div class="alert alert-danger" role="alert" v-if="visibilityAlert">
+        <div class="alert alert-danger" role="alert" v-if="msgAlert">
           {{ msgAlert }}
         </div>
         <b-form-group id="fieldsetHorizontal"
                       horizontal
                       :label-cols="4"
                       breakpoint="md"
-                      label="Old password">
+                      label="Your password">
           <b-form-input type="password" placeholder="Old password" id="oldPassword" v-model.trim="password.oldPassword" @keyup.native="compareOldPassword" required></b-form-input>
         </b-form-group>
-        <p class="alert alert-danger" role="alert" v-if="errorPassword">  {{ errorPassword }}   </p>
+        <p class="alert alert-danger" role="alert" v-if="msgAlertPassword">  {{ msgAlertPassword }}   </p>
         <b-form-group id="fieldsetHorizontal"
                       horizontal
                       :label-cols="4"
@@ -70,18 +70,17 @@ export default {
     return {
       user: null,
       errors: [],
-      visibilityAlert: false,
-      visibilityAlert2: false,
       msgAlert: null,
       msgAlert2: null,
+      msgAlertPassword: null,
       password: {oldPassword: '', newPassword: '', confirmNewPassword: ''},
-      errorPassword: null,
       timerOut: null,
       timerOut2: null,
       modalShow: false
     }
   },
   created () {
+    // GET profile datas
     axios.defaults.headers.common['Authorization'] = localStorage.getItem('jwtToken')
     axios.get(`http://localhost:3000/api/auth/profile/` + this.$route.params.id)
       .then(response => {
@@ -96,26 +95,34 @@ export default {
         }
       })
   },
+  watch: {
+    // hide alert if field modified
+    password: {
+      handler () {
+        this.msgAlert = null
+        this.msgAlert2 = null
+        this.msgAlertPassword = null
+      },
+      deep: true
+    }
+  },
   methods: {
-    cleanInput () {
-      this.password = {oldPassword: '', newPassword: '', confirmNewPassword: ''}
-      this.visibilityAlert2 = false
-      this.visibilityAlert = false
-    },
     compareOldPassword () {
-      this.visibilityAlert2 = false
-      if (this.password.oldPassword !== '') {
+
+      if ( this.password.oldPassword !== '' ) {
+
         clearTimeout(this.timerOut2)
+
+        // setTimeout for wait user finish
         this.timerOut2 = setTimeout(function () {
+
           axios.post('http://localhost:3000/api/auth/profile/' + this.$route.params.id + '/comparepassword/', this.password)
             .then(response => {
-              if (response.data.msg === 'correct password') {
-                return true
-              } else {
-                this.visibilityAlert2 = true
+
+              if (response.data.msg !== 'correct password') {
                 this.msgAlert2 = "Incorrect password."
-                return false
               }
+
             })
             .catch(e => {
               this.errors.push(e)
@@ -126,63 +133,75 @@ export default {
               }
             })
 
-        }.bind(this), 1500)
+        }.bind(this), 1000)
       }
     },
-    checkNewPassword (evt) {
-      this.visibilityAlert = false
-      if (this.password.newPassword !== '' && this.password.confirmNewPassword !== '') {
+    // check if New password and Confirm new password fields are different
+    checkNewPassword () {
+
+      if ( this.password.newPassword !== '' && this.password.confirmNewPassword !== '' ) {
+
         clearTimeout(this.timerOut)
+        // setTimeout for wait user finish
         this.timerOut = setTimeout(function () {
-          clearTimeout(this.timerOut)
-          if (this.password.newPassword !== this.password.confirmNewPassword) {
-            this.errorPassword = 'New password and Confirm new password are different.'
-            document.getElementById('confirmNewPassword').value = ''
-          } else {
-            this.errorPassword = null
+
+          if ( this.password.newPassword !== this.password.confirmNewPassword ) {
+            this.msgAlertPassword = 'New password and Confirm new password are different.'
+            return
           }
-        }.bind(this), 1500)
+
+          this.msgAlertPassword = null
+
+        }.bind(this), 1000)
       }
     },
-    checkFormPassword () {
-      if (this.password.oldPassword && this.password.newPassword && this.password.confirmNewPassword) {
-        if (this.password.oldPassword !== this.password.newPassword && this.password.oldPassword !== this.password.confirmNewPassword) {
-          return true
-        } else {
-          this.msgAlert = "You didn't change your password."
-          return false
-        }
-      } else {
-        this.msgAlert = "Please fill in all informations."
-        return false
-      }
-    },
-    onSubmit (evt) {
+    updatePassword (evt) {
       evt.preventDefault()
-      if (this.checkFormPassword()) {
-        let updateUser = this.user
-        updateUser.password = this.password.newPassword
-        axios.put('http://localhost:3000/api/auth/profile/' + this.$route.params.id + '/edit', updateUser)
-          .then(response => {
-            if (response.data.msg === 'Successful updated user.') {
-              this.modalShow = false
-              this.cleanInput()
-              this.$router.push({
-                name: 'Login'
-              })
-            }
-          })
-          .catch(e => {
-            this.errors.push(e)
-            if (e.response.status === 401) {
-              this.$router.push({
-                name: 'Login'
-              })
-            }
-          })
-      } else {
-        this.visibilityAlert = true
+
+      // check if fields filled
+      if ( !this.password.oldPassword || !this.password.newPassword || !this.password.confirmNewPassword ) {
+        this.msgAlert = "Please fill in all informations."
+        return
       }
+
+      // check if old password different of new password and confirm new password
+      if (this.password.oldPassword === this.password.newPassword || this.password.oldPassword === this.password.confirmNewPassword) {
+        this.msgAlert = "You didn't change your password."
+        return
+      }
+
+      // check if new password and confirm new password are equal
+      if ( this.password.newPassword !== this.password.confirmNewPassword) {
+        this.msgAlertPassword = "New password and Confirm new password are different."
+        return
+      }
+
+      // SET new password
+      let updateUser = this.user
+      updateUser.password = this.password.newPassword
+
+      axios.put('http://localhost:3000/api/auth/profile/' + this.$route.params.id + '/edit', updateUser)
+        .then(response => {
+          if (response.data.msg === 'Successful updated user.') {
+            this.modalShow = false
+            this.$router.push({
+              name: 'Login'
+            })
+          }
+        })
+        .catch(e => {
+          this.errors.push(e)
+          if (e.response.status === 401) {
+            this.$router.push({
+              name: 'Login'
+            })
+          }
+        })
+
+    },
+    // clean field change password
+    cleanInputField () {
+      this.password = {oldPassword: '', newPassword: '', confirmNewPassword: ''}
     }
   }
 }

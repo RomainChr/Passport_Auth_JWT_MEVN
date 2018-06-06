@@ -28,6 +28,7 @@
       }
     },
     created () {
+      // GET user data
       axios.defaults.headers.common['Authorization'] = localStorage.getItem('jwtToken')
       axios.get('http://localhost:3000/api/home')
         .then(response => {
